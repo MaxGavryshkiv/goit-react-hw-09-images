@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 import Modal from "./Modal";
 import Load from "./Loader";
@@ -11,92 +11,168 @@ import "./App.scss";
 
 // TODO propTypes and defaultProps
 
-class App extends React.Component {
-  state = {
-    hits: [],
-    currentPage: 1,
-    searchQuery: "",
-    isLoading: false,
-    error: null,
-    showModal: false,
-  };
+export default function App({ modalChild }) {
+  const [hits, setHits] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [largeImageURL, setLargeImageURL] = useState("");
 
-  componentDidUpdate(prevProps, prevState) {
-    const { searchQuery } = this.state;
-    if (prevState.searchQuery !== searchQuery) {
-      this.fetchHits();
-    }
-  }
-
-  fetchHits = () => {
-    const { currentPage, searchQuery } = this.state;
+  const fetchHits = useCallback(() => {
     const option = { currentPage, searchQuery };
-
-    this.setState({ isLoading: true });
-
+    setIsLoading(true);
     pixabayApi
       .fetchHits(option)
       .then((hits) => {
-        this.setState((prevState) => ({
-          hits: [...prevState.hits, ...hits],
-          currentPage: prevState.currentPage + 1,
-        }));
+        setHits((prevHits) => [...prevHits, ...hits]);
       })
-      .catch((error) => console.log(error))
-      .finally(() => this.setState({ isLoading: false }));
+      .catch((error) => setError(error.messages))
+      .finally(() => setIsLoading(false));
+  }, [currentPage, searchQuery]);
+
+  const updatePage = () => {
+    setCurrentPage((precCurrentPage) => precCurrentPage + 1);
   };
 
-  onChangeQuery = (query) => {
-    this.setState({
-      searchQuery: query,
-      currentPage: 1,
-      hits: [],
-      largeImageURL: "",
-    });
+  useEffect(() => {
+    if (!searchQuery) {
+      return;
+    }
+
+    fetchHits();
+  }, [fetchHits, searchQuery]);
+
+  const onChangeQuery = (query) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+    setHits([]);
+    setLargeImageURL("");
   };
 
-  openModal = (largeImg) => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-    }));
-    this.setState(() => ({
-      largeImageURL: largeImg,
-    }));
+  const openModal = (largeImg) => {
+    setShowModal(!showModal);
+    setLargeImageURL(largeImg);
   };
 
-  closeModal = () => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-    }));
+  const closeModal = () => {
+    setShowModal(!showModal);
   };
 
-  render() {
-    const { hits, isLoading, showModal, largeImageURL } = this.state;
-    const shouldRenderLoadMoreButton = hits.length > 0 && !isLoading;
+  const shouldRenderLoadMoreButton = hits.length > 0 && !isLoading;
+  return (
+    <>
+      {error && <h2>OOPS Error</h2>}
 
-    return (
-      <>
-        <Searchbar onSubmit={this.onChangeQuery} />
-        <ImageGallery
-          obj={hits}
-          onClickModal={this.openModal}
-          modalChild={this.modalChild}
-        />
+      <Searchbar onSubmit={onChangeQuery} />
+      <ImageGallery
+        obj={hits}
+        onClickModal={openModal}
+        modalChild={modalChild}
+      />
 
-        <div className="button-container">
-          {isLoading && <Load />}
+      <div className="button-container">
+        {isLoading && <Load />}
 
-          {shouldRenderLoadMoreButton && <Button onClick={this.fetchHits} />}
-        </div>
+        {shouldRenderLoadMoreButton && <Button onClick={updatePage} />}
+      </div>
 
-        {showModal && (
-          <Modal onClose={this.closeModal}>
-            <img src={largeImageURL} alt="" />
-          </Modal>
-        )}
-      </>
-    );
-  }
+      {showModal && (
+        <Modal onClose={closeModal}>
+          <img src={largeImageURL} alt="" />
+        </Modal>
+      )}
+    </>
+  );
 }
 
-export default App;
+// class App extends React.Component {
+//   state = {
+//     hits: [],
+//     currentPage: 1,
+//     searchQuery: "",
+//     isLoading: false,
+//     error: null,
+//     showModal: false,
+//   };
+
+// componentDidUpdate(prevProps, prevState) {
+//   const { searchQuery } = this.state;
+//   if (prevState.searchQuery !== searchQuery) {
+//     this.fetchHits();
+//   }
+// }
+
+// fetchHits = () => {
+//   const { currentPage, searchQuery } = this.state;
+//   const option = { currentPage, searchQuery };
+
+//   this.setState({ isLoading: true });
+
+//   pixabayApi
+//     .fetchHits(option)
+//     .then((hits) => {
+//       this.setState((prevState) => ({
+//         hits: [...prevState.hits, ...hits],
+//         currentPage: prevState.currentPage + 1,
+//       }));
+//     })
+//     .catch((error) => console.log(error))
+//     .finally(() => this.setState({ isLoading: false }));
+// };
+
+// onChangeQuery = (query) => {
+//   this.setState({
+//     searchQuery: query,
+//     currentPage: 1,
+//     hits: [],
+//     largeImageURL: "",
+//   });
+// };
+
+// openModal = (largeImg) => {
+//   this.setState(({ showModal }) => ({
+//     showModal: !showModal,
+//   }));
+//   this.setState(() => ({
+//     largeImageURL: largeImg,
+//   }));
+// };
+
+// closeModal = () => {
+//   this.setState(({ showModal }) => ({
+//     showModal: !showModal,
+//   }));
+// };
+
+//   render() {
+//     const { hits, isLoading, showModal, largeImageURL } = this.state;
+// const shouldRenderLoadMoreButton = hits.length > 0 && !isLoading;
+
+//     return (
+// <>
+//   <Searchbar onSubmit={this.onChangeQuery} />
+//   <ImageGallery
+//     obj={hits}
+//     onClickModal={this.openModal}
+//     modalChild={this.modalChild}
+//   />
+
+//   <div className="button-container">
+//     {isLoading && <Load />}
+
+//     {shouldRenderLoadMoreButton && <Button onClick={this.fetchHits} />}
+//   </div>
+
+//   {showModal && (
+//     <Modal onClose={this.closeModal}>
+//       <img src={largeImageURL} alt="" />
+//     </Modal>
+//   )}
+// </>
+//     );
+//   }
+// }
+
+// export default App;
